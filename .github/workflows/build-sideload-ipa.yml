@@ -1,0 +1,130 @@
+name: Build sideload IPA
+
+# Manual run only: Actions -> "Build sideload IPA" -> Run workflow.
+# Needs three repository secrets: TG_API_ID and TG_API_HASH (your own, from https://my.telegram.org/apps)
+# and IPA_PASSWORD (any long random password; the built IPA is uploaded encrypted with it).
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: xcode-27
+    timeout-minutes: 360
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Select Xcode from versions.json
+        run: |
+          XCODE_VERSION=$(python3 -c 'import json;print(json.load(open("versions.json"))["xcode"])')
+          if [ -d "/Applications/Xcode_${XCODE_VERSION}.app" ]; then
+            sudo xcode-select -s "/Applications/Xcode_${XCODE_VERSION}.app/Contents/Developer"
+          else
+            echo "Xcode_${XCODE_VERSION}.app not found, using the runner default"
+          fi
+          xcodebuild -version
+
+      - name: Restore Bazel cache
+        uses: actions/cache@v4
+        with:
+          path: ~/telegram-bazel-cache
+          key: bazel-${{ runner.os }}-${{ hashFiles('versions.json', 'MODULE.bazel.lock') }}-${{ github.sha }}
+          restore-keys: |
+            bazel-${{ runner.os }}-${{ hashFiles('versions.json', 'MODULE.bazel.lock') }}-
+            bazel-${{ runner.os }}-
+
+      - name: Create canonical source directory
+        run: |
+          sudo mkdir -p /Users/Shared
+          cp -R "$GITHUB_WORKSPACE" /Users/Shared/
+          mv "/Users/Shared/$(basename "$GITHUB_WORKSPACE")" /Users/Shared/telegram-ios
+
+      - name: Write build configuration
+        working-directory: /Users/Shared/telegram-ios
+        env:
+          TG_API_ID: ${{ secrets.TG_API_ID }}
+          TG_API_HASH: ${{ secrets.TG_API_HASH }}
+        run: |
+          if [ -z "$TG_API_ID" ] || [ -z "$TG_API_HASH" ]; then
+            echo "Add TG_API_ID and TG_API_HASH repository secrets first." >&2
+            exit 1
+          fi
+          # bundle_id and team_id must stay as they are: they select the bundled fake provisioning
+          # profiles. The IPA is re-signed on your device by AltStore/Sideloadly, which changes them.
+          python3 - <<'PY'
+          import json, os
+          cfg = {
+              "bundle_id": "ph.telegra.Telegraph",
+              "api_id": os.environ["TG_API_ID"],
+              "api_hash": os.environ["TG_API_HASH"],
+              "team_id": "C67CF9S4VU",
+              "is_internal_build": "false",
+              "is_appstore_build": "false",
+              "appstore_id": "0",
+              "app_specific_url_scheme": "tg",
+              "premium_iap_product_id": "",
+              "enable_siri": False,
+              "enable_icloud": False,
+          }
+          json.dump(cfg, open("build-system/sideload-configuration.json", "w"), indent=2)
+          PY
+
+      - name: Build
+        working-directory: /Users/Shared/telegram-ios
+        run: |
+          set -x
+          BUILD_NUMBER_OFFSET="$(cat build_number_offset)"
+          COMMIT_COUNT=$(git rev-list --count HEAD)
+          BUILD_NUMBER="$(($COMMIT_COUNT+$BUILD_NUMBER_OFFSET))"
+
+          python3 build-system/Make/ImportCertificates.py --path build-system/fake-codesigning/certs
+          python3 -u build-system/Make/Make.py \
+            --bazelUserRoot="/private/var/tmp/_bazel_containerhost" \
+            --cacheDir="$HOME/telegram-bazel-cache" \
+            build \
+            --configurationPath="build-system/sideload-configuration.json" \
+            --codesigningInformationPath=build-system/fake-codesigning \
+            --configuration=release_arm64 \
+            --buildNumber="$BUILD_NUMBER"
+
+      - name: Collect IPA and strip app extensions
+        working-directory: /Users/Shared/telegram-ios
+        run: |
+          set -x
+          mkdir -p "$GITHUB_WORKSPACE/out"
+          IPA=$(ls bazel-out/applebin_ios-ios_arm*-opt-ST-*/bin/Telegram/Telegram.ipa | head -n 1)
+          cp "$IPA" "$GITHUB_WORKSPACE/out/AyuGram-iOS-full.ipa"
+
+          # A free Apple ID allows only a few App IDs per week, and every extension needs its own.
+          # This variant keeps only the main app (no share extension, widgets, push, Watch, Siri).
+          rm -rf /tmp/ipa && mkdir /tmp/ipa && cd /tmp/ipa
+          unzip -q "$IPA"
+          APP=$(ls -d Payload/*.app)
+          rm -rf "$APP/PlugIns" "$APP/Watch"
+          zip -qry "$GITHUB_WORKSPACE/out/AyuGram-iOS.ipa" Payload
+
+      - name: Encrypt IPA files
+        env:
+          IPA_PASSWORD: ${{ secrets.IPA_PASSWORD }}
+        run: |
+          # The IPA contains your api_id/api_hash. In a public repository every GitHub user could download
+          # an artifact, so only encrypted files are uploaded. The plain IPA never leaves the runner.
+          if [ -z "$IPA_PASSWORD" ]; then
+            echo "Add the IPA_PASSWORD repository secret first." >&2
+            exit 1
+          fi
+          cd out
+          for f in *.ipa; do
+            openssl enc -aes-256-cbc -pbkdf2 -md sha256 -iter 200000 -salt -in "$f" -out "$f.enc" -pass env:IPA_PASSWORD
+            rm -f "$f"
+          done
+          ls -la
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AyuGram-iOS-ipa-encrypted
+          path: out/*.enc
+          retention-days: 7
