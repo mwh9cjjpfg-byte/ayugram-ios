@@ -117,7 +117,7 @@ jobs:
           # A free Apple ID allows only a few App IDs per week, and every extension needs its own.
           # This variant keeps only the main app (no share extension, widgets, push, Watch, Siri).
           rm -rf /tmp/ipa && mkdir /tmp/ipa && cd /tmp/ipa
-          unzip -q "$IPA"
+          unzip -q "$GITHUB_WORKSPACE/out/AyuGram-iOS-full.ipa"
           APP=$(ls -d Payload/*.app)
           rm -rf "$APP/PlugIns" "$APP/Watch"
           zip -qry "$GITHUB_WORKSPACE/out/AyuGram-iOS.ipa" Payload
