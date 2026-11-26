@@ -42,6 +42,16 @@ jobs:
           cp -R "$GITHUB_WORKSPACE" /Users/Shared/
           mv "/Users/Shared/$(basename "$GITHUB_WORKSPACE")" /Users/Shared/telegram-ios
 
+      - name: Skip expiry check for the bundled fake provisioning profiles
+        working-directory: /Users/Shared/telegram-ios
+        run: |
+          # The fake profiles shipped with Telegram-iOS have an ExpirationDate that has passed
+          # (they are only placeholders: the IPA is re-signed on your device anyway).
+          FILE=build-system/bazel-rules/rules_apple/tools/plisttool/plisttool.py
+          grep -n "if expire and expire < datetime.datetime.now():" "$FILE"
+          sed -i '' 's/if expire and expire < datetime.datetime.now():/if False:/' "$FILE"
+          grep -n "if False:" "$FILE"
+
       - name: Write build configuration
         working-directory: /Users/Shared/telegram-ios
         env:
