@@ -28,7 +28,8 @@ jobs:
           xcodebuild -version
 
       - name: Restore Bazel cache
-        uses: actions/cache@v4
+        id: bazel-cache
+        uses: actions/cache/restore@v4
         with:
           path: ~/telegram-bazel-cache
           key: bazel-${{ runner.os }}-${{ hashFiles('versions.json', 'MODULE.bazel.lock') }}-${{ github.sha }}
@@ -105,7 +106,12 @@ jobs:
         run: |
           set -x
           mkdir -p "$GITHUB_WORKSPACE/out"
-          IPA=$(ls bazel-out/applebin_ios-ios_arm*-opt-ST-*/bin/Telegram/Telegram.ipa | head -n 1)
+          IPA=$(find -L bazel-out -path '*/bin/Telegram/Telegram.ipa' -type f 2>/dev/null | head -n 1)
+          if [ -z "$IPA" ]; then
+            echo "Telegram.ipa not found. Candidates:" >&2
+            find -L bazel-out -name '*.ipa' -type f 2>/dev/null | head -n 20 >&2
+            exit 1
+          fi
           cp "$IPA" "$GITHUB_WORKSPACE/out/AyuGram-iOS-full.ipa"
 
           # A free Apple ID allows only a few App IDs per week, and every extension needs its own.
@@ -115,6 +121,13 @@ jobs:
           APP=$(ls -d Payload/*.app)
           rm -rf "$APP/PlugIns" "$APP/Watch"
           zip -qry "$GITHUB_WORKSPACE/out/AyuGram-iOS.ipa" Payload
+
+      - name: Save Bazel cache
+        if: always() && steps.bazel-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ~/telegram-bazel-cache
+          key: bazel-${{ runner.os }}-${{ hashFiles('versions.json', 'MODULE.bazel.lock') }}-${{ github.sha }}
 
       - name: Encrypt IPA files
         env:
