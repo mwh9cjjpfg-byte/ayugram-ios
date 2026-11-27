@@ -205,7 +205,7 @@ func markMessageContentAsConsumedRemotely(transaction: Transaction, messageId: M
                     updatedAttributes[i] = AutoremoveTimeoutMessageAttribute(timeout: attribute.timeout, countdownBeginTime: countdownBeginTime)
                     updateMessage = true
                                  
-                    if message.id.peerId.namespace == Namespaces.Peer.SecretChat {
+                    if message.id.peerId.namespace == Namespaces.Peer.SecretChat || AyuConfig.keepSelfDestructingMedia {
                     } else {
                         if attribute.timeout == viewOnceTimeout || timestamp >= autoremoveExpiryTimestamp(countdownBeginTime: countdownBeginTime, timeout: attribute.timeout) {
                             for i in 0 ..< updatedMedia.count {
@@ -229,7 +229,7 @@ func markMessageContentAsConsumedRemotely(transaction: Transaction, messageId: M
                     updatedAttributes[i] = AutoclearTimeoutMessageAttribute(timeout: attribute.timeout, countdownBeginTime: countdownBeginTime)
                     updateMessage = true
                     
-                    if message.id.peerId.namespace == Namespaces.Peer.SecretChat {
+                    if message.id.peerId.namespace == Namespaces.Peer.SecretChat || AyuConfig.keepSelfDestructingMedia {
                     } else {
                         for i in 0 ..< updatedMedia.count {
                             if attribute.timeout == viewOnceTimeout || timestamp >= autoremoveExpiryTimestamp(countdownBeginTime: countdownBeginTime, timeout: attribute.timeout) {

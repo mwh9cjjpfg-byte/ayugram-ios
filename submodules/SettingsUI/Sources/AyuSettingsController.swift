@@ -18,6 +18,8 @@ private struct AyuSettingsSnapshot: Equatable {
     var dontSendScreenshotNotifications: Bool
     var disableAds: Bool
     var localPremium: Bool
+    var keepSelfDestructingMedia: Bool
+    var allowScreenshots: Bool
 
     static func current() -> AyuSettingsSnapshot {
         return AyuSettingsSnapshot(
@@ -29,7 +31,9 @@ private struct AyuSettingsSnapshot: Equatable {
             keepSecretChatMessages: AyuConfig.keepSecretChatMessages,
             dontSendScreenshotNotifications: AyuConfig.dontSendScreenshotNotifications,
             disableAds: AyuConfig.disableAds,
-            localPremium: AyuConfig.localPremium
+            localPremium: AyuConfig.localPremium,
+            keepSelfDestructingMedia: AyuConfig.keepSelfDestructingMedia,
+            allowScreenshots: AyuConfig.allowScreenshots
         )
     }
 }
@@ -54,6 +58,8 @@ private enum AyuSettingsToggle {
     case screenshots
     case ads
     case localPremium
+    case keepMedia
+    case allowShots
 }
 
 private enum AyuSettingsSection: Int32 {
@@ -61,6 +67,7 @@ private enum AyuSettingsSection: Int32 {
     case messages
     case secret
     case other
+    case media
 }
 
 private enum AyuSettingsEntry: ItemListNodeEntry {
@@ -86,6 +93,11 @@ private enum AyuSettingsEntry: ItemListNodeEntry {
     case localPremium(Bool)
     case otherFooter
 
+    case mediaHeader
+    case keepMedia(Bool)
+    case allowShots(Bool)
+    case mediaFooter
+
     var section: ItemListSectionId {
         switch self {
         case .ghostHeader, .ghostAll, .readReceipts, .typing, .online, .stories, .ghostFooter:
@@ -96,6 +108,8 @@ private enum AyuSettingsEntry: ItemListNodeEntry {
             return AyuSettingsSection.secret.rawValue
         case .otherHeader, .ads, .localPremium, .otherFooter:
             return AyuSettingsSection.other.rawValue
+        case .mediaHeader, .keepMedia, .allowShots, .mediaFooter:
+            return AyuSettingsSection.media.rawValue
         }
     }
 
@@ -137,6 +151,14 @@ private enum AyuSettingsEntry: ItemListNodeEntry {
             return 16
         case .otherFooter:
             return 17
+        case .mediaHeader:
+            return 18
+        case .keepMedia:
+            return 19
+        case .allowShots:
+            return 20
+        case .mediaFooter:
+            return 21
         }
     }
 
@@ -201,6 +223,18 @@ private enum AyuSettingsEntry: ItemListNodeEntry {
             return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Local Premium", value: value, sectionId: self.section, style: .blocks, updated: { value in
                 arguments.toggle(.localPremium, value)
             })
+        case .mediaHeader:
+            return ItemListSectionHeaderItem(presentationData: presentationData, text: "SELF-DESTRUCTING MEDIA & SCREENSHOTS", sectionId: self.section)
+        case let .keepMedia(value):
+            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Keep self-destructing media", value: value, sectionId: self.section, style: .blocks, updated: { value in
+                arguments.toggle(.keepMedia, value)
+            })
+        case let .allowShots(value):
+            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Allow screenshots everywhere", value: value, sectionId: self.section, style: .blocks, updated: { value in
+                arguments.toggle(.allowShots, value)
+            })
+        case .mediaFooter:
+            return ItemListTextItem(presentationData: presentationData, text: .plain("View-once photos, videos and round videos stay in the chat after you open them or when they expire or get deleted. Open the media once so it is downloaded. Screenshots and screen recording work in secret chats and protected content. Restart the app after changing."), sectionId: self.section)
         case .otherFooter:
             return ItemListTextItem(presentationData: presentationData, text: .plain("Local Premium only unlocks Premium options in the interface on this device. Features that need the server (larger uploads, voice-to-text, premium emoji in sent messages) still require a real subscription. Restart the app after changing it."), sectionId: self.section)
         }
@@ -234,6 +268,11 @@ private func ayuSettingsEntries(snapshot: AyuSettingsSnapshot) -> [AyuSettingsEn
     entries.append(.localPremium(snapshot.localPremium))
     entries.append(.otherFooter)
 
+    entries.append(.mediaHeader)
+    entries.append(.keepMedia(snapshot.keepSelfDestructingMedia))
+    entries.append(.allowShots(snapshot.allowScreenshots))
+    entries.append(.mediaFooter)
+
     return entries
 }
 
@@ -261,6 +300,10 @@ public func ayuSettingsController(context: AccountContext) -> ViewController {
                 AyuConfig.disableAds = value
             case .localPremium:
                 AyuConfig.localPremium = value
+            case .keepMedia:
+                AyuConfig.keepSelfDestructingMedia = value
+            case .allowShots:
+                AyuConfig.allowScreenshots = value
             }
             statePromise.set(AyuSettingsSnapshot.current())
         },

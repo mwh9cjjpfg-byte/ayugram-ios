@@ -375,7 +375,7 @@ public final class MediaPlayerNode: ASDisplayNode {
                 if let strongSelf = self {
                     strongSelf.videoLayer = videoLayer
                     if #available(iOS 13.0, *) {
-                        videoLayer.preventsCapture = captureProtected
+                        videoLayer.preventsCapture = captureProtected && !UserDefaults.standard.bool(forKey: "ayu.allowScreenshots")
                     }
                     strongSelf.updateLayout()
                     

@@ -15,6 +15,8 @@ public enum AyuConfig {
         case dontSendScreenshotNotifications = "ayu.dontSendScreenshotNotifications"
         case disableAds = "ayu.disableAds"
         case localPremium = "ayu.localPremium"
+        case keepSelfDestructingMedia = "ayu.keepSelfDestructingMedia"
+        case allowScreenshots = "ayu.allowScreenshots"
     }
 
     private static func get(_ key: Key) -> Bool {
@@ -77,6 +79,18 @@ public enum AyuConfig {
     public static var localPremium: Bool {
         get { return get(.localPremium) }
         set { set(.localPremium, newValue) }
+    }
+    
+    /// Keep view-once / self-destructing photos, videos and round videos instead of turning them into "expired" stubs.
+    public static var keepSelfDestructingMedia: Bool {
+        get { return get(.keepSelfDestructingMedia) }
+        set { set(.keepSelfDestructingMedia, newValue) }
+    }
+    
+    /// Allow normal screenshots and screen recording where the app normally blanks the screen (secret chats, protected content).
+    public static var allowScreenshots: Bool {
+        get { return get(.allowScreenshots) }
+        set { set(.allowScreenshots, newValue) }
     }
     
     /// Convenience for the settings screen: turns all ghost switches on or off at once.
