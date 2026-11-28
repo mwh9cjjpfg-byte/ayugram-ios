@@ -244,6 +244,10 @@ private func _internal_applyPeerEmojiStatus(account: Account, peerId: PeerId, ap
 }
 
 func _internal_updatePeerEmojiStatus(account: Account, peerId: PeerId, fileId: Int64?, expirationDate: Int32?) -> Signal<Never, UpdatePeerEmojiStatusError> {
+    if AyuConfig.localPremium && peerId == account.peerId {
+        AyuLocalProfile.setEmojiStatus(fileId: fileId)
+        return .complete()
+    }
     let mappedStatus: Api.EmojiStatus
     let emojiStatus: PeerEmojiStatus?
     if let fileId {

@@ -106,6 +106,7 @@ private var declaredEncodables: Void = {
     declareEncodable(TextEntitiesMessageAttribute.self, f: { TextEntitiesMessageAttribute(decoder: $0) })
     declareEncodable(RichTextMessageAttribute.self, f: { RichTextMessageAttribute(decoder: $0) })
     declareEncodable(ReplyMessageAttribute.self, f: { ReplyMessageAttribute(decoder: $0) })
+    declareEncodable(AyuEditHistoryMessageAttribute.self, f: { AyuEditHistoryMessageAttribute(decoder: $0) })
     declareEncodable(AyuDeletedMessageAttribute.self, f: { AyuDeletedMessageAttribute(decoder: $0) })
     declareEncodable(QuotedReplyMessageAttribute.self, f: { QuotedReplyMessageAttribute(decoder: $0) })
     declareEncodable(ReplyStoryAttribute.self, f: { ReplyStoryAttribute(decoder: $0) })

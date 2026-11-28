@@ -7,46 +7,7 @@ import TelegramPresentationData
 import ItemListUI
 import PresentationDataUtils
 import AccountContext
-
-private struct AyuSettingsSnapshot: Equatable {
-    var dontSendReadReceipts: Bool
-    var dontSendTyping: Bool
-    var dontSendOnline: Bool
-    var dontReadStories: Bool
-    var keepDeletedMessages: Bool
-    var keepSecretChatMessages: Bool
-    var dontSendScreenshotNotifications: Bool
-    var disableAds: Bool
-    var localPremium: Bool
-    var keepSelfDestructingMedia: Bool
-    var allowScreenshots: Bool
-
-    static func current() -> AyuSettingsSnapshot {
-        return AyuSettingsSnapshot(
-            dontSendReadReceipts: AyuConfig.dontSendReadReceipts,
-            dontSendTyping: AyuConfig.dontSendTyping,
-            dontSendOnline: AyuConfig.dontSendOnline,
-            dontReadStories: AyuConfig.dontReadStories,
-            keepDeletedMessages: AyuConfig.keepDeletedMessages,
-            keepSecretChatMessages: AyuConfig.keepSecretChatMessages,
-            dontSendScreenshotNotifications: AyuConfig.dontSendScreenshotNotifications,
-            disableAds: AyuConfig.disableAds,
-            localPremium: AyuConfig.localPremium,
-            keepSelfDestructingMedia: AyuConfig.keepSelfDestructingMedia,
-            allowScreenshots: AyuConfig.allowScreenshots
-        )
-    }
-}
-
-private final class AyuSettingsArguments {
-    let toggle: (AyuSettingsToggle, Bool) -> Void
-    let setGhostMode: (Bool) -> Void
-
-    init(toggle: @escaping (AyuSettingsToggle, Bool) -> Void, setGhostMode: @escaping (Bool) -> Void) {
-        self.toggle = toggle
-        self.setGhostMode = setGhostMode
-    }
-}
+import PromptUI
 
 private enum AyuSettingsToggle {
     case readReceipts
@@ -55,230 +16,199 @@ private enum AyuSettingsToggle {
     case stories
     case keepDeleted
     case keepSecret
-    case screenshots
+    case screenshotNotices
     case ads
     case localPremium
     case keepMedia
     case allowShots
+    case bypassCopyProtection
+    case chatActivity
 }
 
-private enum AyuSettingsSection: Int32 {
-    case ghost
-    case messages
-    case secret
-    case other
-    case media
+private enum AyuSettingsInput {
+    case deletedMark
+    case editedMark
+    case filterUserIds
+    case filterRegex
+}
+
+private enum AyuSettingsAction {
+    case ticTacToe
+}
+
+private struct AyuSettingsSnapshot: Equatable {
+    var values: [Bool]
+    var deletedMark: String
+    var editedMark: String
+    var filterUserIds: String
+    var filterRegex: String
+    
+    static func current() -> AyuSettingsSnapshot {
+        return AyuSettingsSnapshot(
+            values: [
+                AyuConfig.dontSendReadReceipts,
+                AyuConfig.dontSendTyping,
+                AyuConfig.dontSendOnline,
+                AyuConfig.dontReadStories,
+                AyuConfig.keepDeletedMessages,
+                AyuConfig.keepSecretChatMessages,
+                AyuConfig.dontSendScreenshotNotifications,
+                AyuConfig.disableAds,
+                AyuConfig.localPremium,
+                AyuConfig.keepSelfDestructingMedia,
+                AyuConfig.allowScreenshots,
+                AyuConfig.bypassCopyProtection,
+                AyuConfig.showChatActivity
+            ],
+            deletedMark: AyuConfig.deletedMark,
+            editedMark: AyuConfig.editedMark ?? "",
+            filterUserIds: AyuConfig.filterUserIds,
+            filterRegex: AyuConfig.filterRegex
+        )
+    }
+}
+
+private final class AyuSettingsArguments {
+    let toggle: (AyuSettingsToggle, Bool) -> Void
+    let setGhostMode: (Bool) -> Void
+    let edit: (AyuSettingsInput) -> Void
+    let perform: (AyuSettingsAction) -> Void
+    
+    init(toggle: @escaping (AyuSettingsToggle, Bool) -> Void, setGhostMode: @escaping (Bool) -> Void, edit: @escaping (AyuSettingsInput) -> Void, perform: @escaping (AyuSettingsAction) -> Void) {
+        self.toggle = toggle
+        self.setGhostMode = setGhostMode
+        self.edit = edit
+        self.perform = perform
+    }
 }
 
 private enum AyuSettingsEntry: ItemListNodeEntry {
-    case ghostHeader
-    case ghostAll(Bool)
-    case readReceipts(Bool)
-    case typing(Bool)
-    case online(Bool)
-    case stories(Bool)
-    case ghostFooter
-
-    case messagesHeader
-    case keepDeleted(Bool)
-    case messagesFooter
-
-    case secretHeader
-    case keepSecret(Bool)
-    case screenshots(Bool)
-    case secretFooter
-
-    case otherHeader
-    case ads(Bool)
-    case localPremium(Bool)
-    case otherFooter
-
-    case mediaHeader
-    case keepMedia(Bool)
-    case allowShots(Bool)
-    case mediaFooter
-
+    case header(Int32, Int32, String)
+    case ghostAll(Int32, Int32, Bool)
+    case toggle(Int32, Int32, String, AyuSettingsToggle, Bool)
+    case input(Int32, Int32, String, String, AyuSettingsInput)
+    case action(Int32, Int32, String, AyuSettingsAction)
+    case footer(Int32, Int32, String)
+    
     var section: ItemListSectionId {
         switch self {
-        case .ghostHeader, .ghostAll, .readReceipts, .typing, .online, .stories, .ghostFooter:
-            return AyuSettingsSection.ghost.rawValue
-        case .messagesHeader, .keepDeleted, .messagesFooter:
-            return AyuSettingsSection.messages.rawValue
-        case .secretHeader, .keepSecret, .screenshots, .secretFooter:
-            return AyuSettingsSection.secret.rawValue
-        case .otherHeader, .ads, .localPremium, .otherFooter:
-            return AyuSettingsSection.other.rawValue
-        case .mediaHeader, .keepMedia, .allowShots, .mediaFooter:
-            return AyuSettingsSection.media.rawValue
+        case let .header(_, section, _), let .ghostAll(_, section, _), let .toggle(_, section, _, _, _), let .input(_, section, _, _, _), let .action(_, section, _, _), let .footer(_, section, _):
+            return section
         }
     }
-
+    
     var stableId: Int32 {
         switch self {
-        case .ghostHeader:
-            return 0
-        case .ghostAll:
-            return 1
-        case .readReceipts:
-            return 2
-        case .typing:
-            return 3
-        case .online:
-            return 4
-        case .stories:
-            return 5
-        case .ghostFooter:
-            return 6
-        case .messagesHeader:
-            return 7
-        case .keepDeleted:
-            return 8
-        case .messagesFooter:
-            return 9
-        case .secretHeader:
-            return 10
-        case .keepSecret:
-            return 11
-        case .screenshots:
-            return 12
-        case .secretFooter:
-            return 13
-        case .otherHeader:
-            return 14
-        case .ads:
-            return 15
-        case .localPremium:
-            return 16
-        case .otherFooter:
-            return 17
-        case .mediaHeader:
-            return 18
-        case .keepMedia:
-            return 19
-        case .allowShots:
-            return 20
-        case .mediaFooter:
-            return 21
+        case let .header(id, _, _), let .ghostAll(id, _, _), let .toggle(id, _, _, _, _), let .input(id, _, _, _, _), let .action(id, _, _, _), let .footer(id, _, _):
+            return id
         }
     }
-
+    
+    static func ==(lhs: AyuSettingsEntry, rhs: AyuSettingsEntry) -> Bool {
+        switch (lhs, rhs) {
+        case let (.header(a, b, c), .header(d, e, f)):
+            return a == d && b == e && c == f
+        case let (.ghostAll(a, b, c), .ghostAll(d, e, f)):
+            return a == d && b == e && c == f
+        case let (.toggle(a, b, c, _, e), .toggle(f, g, h, _, j)):
+            return a == f && b == g && c == h && e == j
+        case let (.input(a, b, c, d, _), .input(e, f, g, h, _)):
+            return a == e && b == f && c == g && d == h
+        case let (.action(a, b, c, _), .action(d, e, f, _)):
+            return a == d && b == e && c == f
+        case let (.footer(a, b, c), .footer(d, e, f)):
+            return a == d && b == e && c == f
+        default:
+            return false
+        }
+    }
+    
     static func <(lhs: AyuSettingsEntry, rhs: AyuSettingsEntry) -> Bool {
         return lhs.stableId < rhs.stableId
     }
-
+    
     func item(presentationData: ItemListPresentationData, arguments: Any) -> ListViewItem {
         let arguments = arguments as! AyuSettingsArguments
         switch self {
-        case .ghostHeader:
-            return ItemListSectionHeaderItem(presentationData: presentationData, text: "GHOST MODE", sectionId: self.section)
-        case let .ghostAll(value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Ghost mode (all)", value: value, sectionId: self.section, style: .blocks, updated: { value in
+        case let .header(_, section, text):
+            return ItemListSectionHeaderItem(presentationData: presentationData, text: text, sectionId: section)
+        case let .ghostAll(_, section, value):
+            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Режим призрака (всё сразу)", value: value, sectionId: section, style: .blocks, updated: { value in
                 arguments.setGhostMode(value)
             })
-        case let .readReceipts(value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Don't send read receipts", value: value, sectionId: self.section, style: .blocks, updated: { value in
-                arguments.toggle(.readReceipts, value)
+        case let .toggle(_, section, title, toggle, value):
+            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: title, value: value, sectionId: section, style: .blocks, updated: { value in
+                arguments.toggle(toggle, value)
             })
-        case let .typing(value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Don't send typing status", value: value, sectionId: self.section, style: .blocks, updated: { value in
-                arguments.toggle(.typing, value)
+        case let .input(_, section, title, label, input):
+            return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, title: title, label: label, sectionId: section, style: .blocks, action: {
+                arguments.edit(input)
             })
-        case let .online(value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Don't send online status", value: value, sectionId: self.section, style: .blocks, updated: { value in
-                arguments.toggle(.online, value)
+        case let .action(_, section, title, action):
+            return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, title: title, label: "", sectionId: section, style: .blocks, action: {
+                arguments.perform(action)
             })
-        case let .stories(value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Don't mark stories as viewed", value: value, sectionId: self.section, style: .blocks, updated: { value in
-                arguments.toggle(.stories, value)
-            })
-        case .ghostFooter:
-            return ItemListTextItem(presentationData: presentationData, text: .plain("Chats you open stay marked as read on this device only. The sender will not see that you read their messages."), sectionId: self.section)
-        case .messagesHeader:
-            return ItemListSectionHeaderItem(presentationData: presentationData, text: "MESSAGES", sectionId: self.section)
-        case let .keepDeleted(value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Keep deleted messages", value: value, sectionId: self.section, style: .blocks, updated: { value in
-                arguments.toggle(.keepDeleted, value)
-            })
-        case .messagesFooter:
-            return ItemListTextItem(presentationData: presentationData, text: .plain("Messages deleted by other people stay in the chat on this device (private chats, groups and channels)."), sectionId: self.section)
-        case .secretHeader:
-            return ItemListSectionHeaderItem(presentationData: presentationData, text: "SECRET CHATS", sectionId: self.section)
-        case let .keepSecret(value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Keep secret chat messages", value: value, sectionId: self.section, style: .blocks, updated: { value in
-                arguments.toggle(.keepSecret, value)
-            })
-        case let .screenshots(value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Hide screenshot notifications", value: value, sectionId: self.section, style: .blocks, updated: { value in
-                arguments.toggle(.screenshots, value)
-            })
-        case .secretFooter:
-            return ItemListTextItem(presentationData: presentationData, text: .plain("Keeping messages ignores remote deletion and self-destruct timers in secret chats. It needs \"Keep deleted messages\" to be on."), sectionId: self.section)
-        case .otherHeader:
-            return ItemListSectionHeaderItem(presentationData: presentationData, text: "OTHER", sectionId: self.section)
-        case let .ads(value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Disable ads", value: value, sectionId: self.section, style: .blocks, updated: { value in
-                arguments.toggle(.ads, value)
-            })
-        case let .localPremium(value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Local Premium", value: value, sectionId: self.section, style: .blocks, updated: { value in
-                arguments.toggle(.localPremium, value)
-            })
-        case .mediaHeader:
-            return ItemListSectionHeaderItem(presentationData: presentationData, text: "SELF-DESTRUCTING MEDIA & SCREENSHOTS", sectionId: self.section)
-        case let .keepMedia(value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Keep self-destructing media", value: value, sectionId: self.section, style: .blocks, updated: { value in
-                arguments.toggle(.keepMedia, value)
-            })
-        case let .allowShots(value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Allow screenshots everywhere", value: value, sectionId: self.section, style: .blocks, updated: { value in
-                arguments.toggle(.allowShots, value)
-            })
-        case .mediaFooter:
-            return ItemListTextItem(presentationData: presentationData, text: .plain("View-once photos, videos and round videos stay in the chat after you open them or when they expire or get deleted. Open the media once so it is downloaded. Screenshots and screen recording work in secret chats and protected content. Restart the app after changing."), sectionId: self.section)
-        case .otherFooter:
-            return ItemListTextItem(presentationData: presentationData, text: .plain("Local Premium only unlocks Premium options in the interface on this device. Features that need the server (larger uploads, voice-to-text, premium emoji in sent messages) still require a real subscription. Restart the app after changing it."), sectionId: self.section)
+        case let .footer(_, section, text):
+            return ItemListTextItem(presentationData: presentationData, text: .plain(text), sectionId: section)
         }
     }
 }
 
 private func ayuSettingsEntries(snapshot: AyuSettingsSnapshot) -> [AyuSettingsEntry] {
+    let v = snapshot.values
     var entries: [AyuSettingsEntry] = []
-
-    let allGhost = snapshot.dontSendReadReceipts && snapshot.dontSendTyping && snapshot.dontSendOnline && snapshot.dontReadStories
-
-    entries.append(.ghostHeader)
-    entries.append(.ghostAll(allGhost))
-    entries.append(.readReceipts(snapshot.dontSendReadReceipts))
-    entries.append(.typing(snapshot.dontSendTyping))
-    entries.append(.online(snapshot.dontSendOnline))
-    entries.append(.stories(snapshot.dontReadStories))
-    entries.append(.ghostFooter)
-
-    entries.append(.messagesHeader)
-    entries.append(.keepDeleted(snapshot.keepDeletedMessages))
-    entries.append(.messagesFooter)
-
-    entries.append(.secretHeader)
-    entries.append(.keepSecret(snapshot.keepSecretChatMessages))
-    entries.append(.screenshots(snapshot.dontSendScreenshotNotifications))
-    entries.append(.secretFooter)
-
-    entries.append(.otherHeader)
-    entries.append(.ads(snapshot.disableAds))
-    entries.append(.localPremium(snapshot.localPremium))
-    entries.append(.otherFooter)
-
-    entries.append(.mediaHeader)
-    entries.append(.keepMedia(snapshot.keepSelfDestructingMedia))
-    entries.append(.allowShots(snapshot.allowScreenshots))
-    entries.append(.mediaFooter)
-
+    
+    let allGhost = v[0] && v[1] && v[2] && v[3]
+    entries.append(.header(0, 0, "РЕЖИМ ПРИЗРАКА"))
+    entries.append(.ghostAll(1, 0, allGhost))
+    entries.append(.toggle(2, 0, "Не отправлять отметку о прочтении", .readReceipts, v[0]))
+    entries.append(.toggle(3, 0, "Не показывать, что я печатаю", .typing, v[1]))
+    entries.append(.toggle(4, 0, "Не показывать, что я в сети", .online, v[2]))
+    entries.append(.toggle(5, 0, "Не отмечать истории просмотренными", .stories, v[3]))
+    entries.append(.footer(6, 0, "Чаты остаются прочитанными только на этом устройстве. Отправитель не увидит, что ты прочитал сообщение или посмотрел историю."))
+    
+    entries.append(.header(10, 1, "СООБЩЕНИЯ"))
+    entries.append(.toggle(11, 1, "Сохранять удалённые сообщения", .keepDeleted, v[4]))
+    entries.append(.input(12, 1, "Пометка «удалено»", snapshot.deletedMark.isEmpty ? "нет" : snapshot.deletedMark, .deletedMark))
+    entries.append(.input(13, 1, "Пометка «изменено»", snapshot.editedMark.isEmpty ? "стандартная" : snapshot.editedMark, .editedMark))
+    entries.append(.footer(14, 1, "Сообщения, которые удалили другие, остаются в чате на этом устройстве (личные чаты, группы и каналы). У изменённых сообщений в меню появляется «История правок»."))
+    
+    entries.append(.header(20, 2, "СЕКРЕТНЫЕ ЧАТЫ"))
+    entries.append(.toggle(21, 2, "Сохранять сообщения секретных чатов", .keepSecret, v[5]))
+    entries.append(.toggle(22, 2, "Скрывать уведомления о скриншотах", .screenshotNotices, v[6]))
+    entries.append(.footer(23, 2, "Сохранение игнорирует удаление и таймеры самоуничтожения в секретных чатах. Нужен включённый пункт «Сохранять удалённые сообщения»."))
+    
+    entries.append(.header(30, 3, "СГОРАЮЩИЕ МЕДИА И СКРИНШОТЫ"))
+    entries.append(.toggle(31, 3, "Сохранять сгорающие медиа", .keepMedia, v[9]))
+    entries.append(.toggle(32, 3, "Разрешить скриншоты везде", .allowShots, v[10]))
+    entries.append(.toggle(33, 3, "Пересылка и сохранение из защищённых чатов", .bypassCopyProtection, v[11]))
+    entries.append(.footer(34, 3, "Фото, видео и кружки «на один просмотр» остаются после открытия. Открой медиа один раз, чтобы оно скачалось. Последний пункт снимает запрет пересылки, поставленный владельцем канала или группы. Применяй на свою ответственность. После изменения перезапусти приложение."))
+    
+    entries.append(.header(40, 4, "ПРОЧЕЕ"))
+    entries.append(.toggle(41, 4, "Отключить рекламу", .ads, v[7]))
+    entries.append(.toggle(42, 4, "Показывать активность в чате", .chatActivity, v[12]))
+    entries.append(.footer(43, 4, "Активность в чате: рядом со статусом собеседника показывается, когда он последний раз написал, начал печатать или прочитал твоё сообщение именно в вашем чате. Показывает только то, что человек сам сделал в вашем чате."))
+    
+    entries.append(.header(50, 5, "ЛОКАЛЬНЫЙ PREMIUM"))
+    entries.append(.toggle(51, 5, "Локальный Premium", .localPremium, v[8]))
+    entries.append(.footer(52, 5, "Включает Premium-интерфейс только на этом устройстве: эмодзи, реакции, стикеры, эмодзи-статус и цвета профиля. Статус и цвета ставятся обычным способом (Настройки → Изменить профиль), но их видишь только ты. Отправленные Premium-эмодзи и реакции у других выглядят обычными. Чтобы вернуть кнопку покупки Premium, выключи этот пункт и перезапусти приложение."))
+    
+    entries.append(.header(60, 6, "ФИЛЬТРЫ"))
+    entries.append(.input(61, 6, "Скрывать сообщения от (ID)", snapshot.filterUserIds.isEmpty ? "нет" : snapshot.filterUserIds, .filterUserIds))
+    entries.append(.input(62, 6, "Скрывать по слову (regex)", snapshot.filterRegex.isEmpty ? "нет" : snapshot.filterRegex, .filterRegex))
+    entries.append(.footer(63, 6, "Сообщения скрываются только у тебя на устройстве. ID пользователей через запятую. В поле regex можно писать слова через | , например: реклама|скидка."))
+    
+    entries.append(.header(70, 7, "ИГРЫ"))
+    entries.append(.action(71, 7, "Крестики-нолики", .ticTacToe))
+    
     return entries
 }
 
 public func ayuSettingsController(context: AccountContext) -> ViewController {
     let statePromise = ValuePromise(AyuSettingsSnapshot.current(), ignoreRepeated: true)
-
+    var presentControllerImpl: ((ViewController) -> Void)?
+    var pushControllerImpl: ((ViewController) -> Void)?
+    
     let arguments = AyuSettingsArguments(
         toggle: { toggle, value in
             switch toggle {
@@ -294,7 +224,7 @@ public func ayuSettingsController(context: AccountContext) -> ViewController {
                 AyuConfig.keepDeletedMessages = value
             case .keepSecret:
                 AyuConfig.keepSecretChatMessages = value
-            case .screenshots:
+            case .screenshotNotices:
                 AyuConfig.dontSendScreenshotNotifications = value
             case .ads:
                 AyuConfig.disableAds = value
@@ -304,15 +234,60 @@ public func ayuSettingsController(context: AccountContext) -> ViewController {
                 AyuConfig.keepSelfDestructingMedia = value
             case .allowShots:
                 AyuConfig.allowScreenshots = value
+            case .bypassCopyProtection:
+                AyuConfig.bypassCopyProtection = value
+            case .chatActivity:
+                AyuConfig.showChatActivity = value
             }
             statePromise.set(AyuSettingsSnapshot.current())
         },
         setGhostMode: { value in
             AyuConfig.setGhostMode(value)
             statePromise.set(AyuSettingsSnapshot.current())
+        },
+        edit: { input in
+            let title: String
+            let value: String
+            switch input {
+            case .deletedMark:
+                title = "Пометка «удалено»"
+                value = AyuConfig.deletedMark
+            case .editedMark:
+                title = "Пометка «изменено» (пусто = стандартная)"
+                value = AyuConfig.editedMark ?? ""
+            case .filterUserIds:
+                title = "ID пользователей через запятую"
+                value = AyuConfig.filterUserIds
+            case .filterRegex:
+                title = "Регулярное выражение"
+                value = AyuConfig.filterRegex
+            }
+            presentControllerImpl?(promptController(context: context, text: title, value: value, apply: { result in
+                guard let result = result else {
+                    return
+                }
+                let trimmed = result.trimmingCharacters(in: .whitespacesAndNewlines)
+                switch input {
+                case .deletedMark:
+                    AyuConfig.deletedMark = trimmed
+                case .editedMark:
+                    AyuConfig.editedMark = trimmed.isEmpty ? nil : trimmed
+                case .filterUserIds:
+                    AyuConfig.filterUserIds = trimmed
+                case .filterRegex:
+                    AyuConfig.filterRegex = trimmed
+                }
+                statePromise.set(AyuSettingsSnapshot.current())
+            }))
+        },
+        perform: { action in
+            switch action {
+            case .ticTacToe:
+                pushControllerImpl?(AyuTicTacToeController(context: context))
+            }
         }
     )
-
+    
     let signal = combineLatest(queue: .mainQueue(),
         context.sharedContext.presentationData,
         statePromise.get()
@@ -322,6 +297,13 @@ public func ayuSettingsController(context: AccountContext) -> ViewController {
         let listState = ItemListNodeState(presentationData: ItemListPresentationData(presentationData), entries: ayuSettingsEntries(snapshot: snapshot), style: .blocks, animateChanges: true)
         return (controllerState, (listState, arguments))
     }
-
-    return ItemListController(context: context, state: signal)
+    
+    let controller = ItemListController(context: context, state: signal)
+    presentControllerImpl = { [weak controller] c in
+        controller?.present(c, in: .window(.root))
+    }
+    pushControllerImpl = { [weak controller] c in
+        (controller?.navigationController as? NavigationController)?.pushViewController(c)
+    }
+    return controller
 }

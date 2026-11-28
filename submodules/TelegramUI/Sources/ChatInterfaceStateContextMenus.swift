@@ -418,6 +418,26 @@ private func ephemeralReplacementContextMenuItems(chatPresentationInterfaceState
         actions.append(.action(ContextMenuActionItem(text: chatPresentationInterfaceState.strings.Chat_EphemeralMessage_AnchoredInfo, textFont: .small, icon: { _ in return nil }, action: noAction)))
         actions.append(.separator)
         
+        if let ayuHistory = message.attributes.first(where: { $0 is AyuEditHistoryMessageAttribute }) as? AyuEditHistoryMessageAttribute, !ayuHistory.texts.isEmpty {
+            actions.append(.action(ContextMenuActionItem(text: "История правок", icon: { theme in
+                return generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Info"), color: theme.contextMenu.primaryColor)
+            }, action: { _, f in
+                f(.dismissWithoutContent)
+                let presentationData = context.sharedContext.currentPresentationData.with { $0 }
+                var versions: [String] = []
+                for i in 0 ..< ayuHistory.texts.count {
+                    let date = stringForFullDate(timestamp: ayuHistory.dates[i], strings: presentationData.strings, dateTimeFormat: presentationData.dateTimeFormat)
+                    versions.append("\(date)\n\(ayuHistory.texts[i])")
+                }
+                controllerInteraction.presentController(textAlertController(
+                    context: context,
+                    title: "История правок",
+                    text: versions.joined(separator: "\n\n"),
+                    actions: [TextAlertAction(type: .defaultAction, title: presentationData.strings.Common_OK, action: {})]
+                ), nil)
+            })))
+        }
+        
         let hasCopyableContent = !message.text.isEmpty || richMessageInstantPage != nil || diceEmoji != nil || (resourceAvailable && imageResource != nil)
         if hasCopyableContent && !isCopyProtected && !isExpired && !isPoll {
             actions.append(.action(ContextMenuActionItem(text: chatPresentationInterfaceState.strings.Conversation_ContextMenuCopy, icon: { theme in

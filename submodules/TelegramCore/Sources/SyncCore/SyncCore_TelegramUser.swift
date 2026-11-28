@@ -289,14 +289,14 @@ public final class TelegramUser: Peer, Equatable {
         self.photo = photo
         self.botInfo = botInfo
         self.restrictionInfo = restrictionInfo
-        self.flags = flags
-        self.emojiStatus = emojiStatus
+        self.flags = AyuLocalProfile.flags(flags, for: id)
+        self.emojiStatus = AyuLocalProfile.emojiStatus(emojiStatus, for: id)
         self.usernames = usernames
         self.storiesHidden = storiesHidden
-        self.nameColor = nameColor
-        self.backgroundEmojiId = backgroundEmojiId
-        self.profileColor = profileColor
-        self.profileBackgroundEmojiId = profileBackgroundEmojiId
+        self.nameColor = AyuLocalProfile.nameColor(nameColor, for: id)
+        self.backgroundEmojiId = AyuLocalProfile.backgroundEmojiId(backgroundEmojiId, for: id)
+        self.profileColor = AyuLocalProfile.profileColor(profileColor, for: id)
+        self.profileBackgroundEmojiId = AyuLocalProfile.profileBackgroundEmojiId(profileBackgroundEmojiId, for: id)
         self.subscriberCount = subscriberCount
         self.verificationIconFileId = verificationIconFileId
         self.linkedCommunityId = linkedCommunityId
@@ -333,23 +333,25 @@ public final class TelegramUser: Peer, Equatable {
         
         self.restrictionInfo = decoder.decodeObjectForKey("ri") as? PeerAccessRestrictionInfo
         
-        self.flags = UserInfoFlags(rawValue: decoder.decodeInt32ForKey("fl", orElse: 0))
+        self.flags = AyuLocalProfile.flags(UserInfoFlags(rawValue: decoder.decodeInt32ForKey("fl", orElse: 0)), for: self.id)
         
-        self.emojiStatus = decoder.decode(PeerEmojiStatus.self, forKey: "emjs")
+        self.emojiStatus = AyuLocalProfile.emojiStatus(decoder.decode(PeerEmojiStatus.self, forKey: "emjs"), for: self.id)
         
         self.usernames = decoder.decodeObjectArrayForKey("uns")
         self.storiesHidden = decoder.decodeOptionalBoolForKey("sth")
         
+        let decodedNameColor: PeerColor?
         if let collectibleColor = decoder.decodeCodable(PeerCollectibleColor.self, forKey: "clclr") {
-            self.nameColor = .collectible(collectibleColor)
+            decodedNameColor = .collectible(collectibleColor)
         } else if let nameColor = decoder.decodeOptionalInt32ForKey("nclr").flatMap({ PeerNameColor(rawValue: $0) }) {
-            self.nameColor = .preset(nameColor)
+            decodedNameColor = .preset(nameColor)
         } else {
-            self.nameColor = nil
+            decodedNameColor = nil
         }
-        self.backgroundEmojiId = decoder.decodeOptionalInt64ForKey("bgem")
-        self.profileColor = decoder.decodeOptionalInt32ForKey("pclr").flatMap { PeerNameColor(rawValue: $0) }
-        self.profileBackgroundEmojiId = decoder.decodeOptionalInt64ForKey("pgem")
+        self.nameColor = AyuLocalProfile.nameColor(decodedNameColor, for: self.id)
+        self.backgroundEmojiId = AyuLocalProfile.backgroundEmojiId(decoder.decodeOptionalInt64ForKey("bgem"), for: self.id)
+        self.profileColor = AyuLocalProfile.profileColor(decoder.decodeOptionalInt32ForKey("pclr").flatMap { PeerNameColor(rawValue: $0) }, for: self.id)
+        self.profileBackgroundEmojiId = AyuLocalProfile.profileBackgroundEmojiId(decoder.decodeOptionalInt64ForKey("pgem"), for: self.id)
         self.subscriberCount = decoder.decodeOptionalInt32ForKey("ssc")
         self.verificationIconFileId = decoder.decodeOptionalInt64ForKey("vfid")
         self.linkedCommunityId = decoder.decodeOptionalInt64ForKey("lcid").flatMap(PeerId.init)

@@ -102,6 +102,16 @@ private func _internal_applyAccountPeerColor(postbox: Postbox, network: Network,
 }
 
 func _internal_updateNameColorAndEmoji(account: Account, nameColor: UpdateNameColor, profileColor: PeerNameColor?, profileBackgroundEmojiId: Int64?) -> Signal<Void, UpdateNameColorAndEmojiError> {
+    if AyuConfig.localPremium {
+        var localNameColor: Int32?
+        var localNameEmoji: Int64?
+        if case let .preset(color, backgroundEmojiId) = nameColor {
+            localNameColor = color.rawValue
+            localNameEmoji = backgroundEmojiId
+        }
+        AyuLocalProfile.setColors(nameColor: localNameColor, nameBackgroundEmojiId: localNameEmoji, profileColor: profileColor?.rawValue, profileBackgroundEmojiId: profileBackgroundEmojiId)
+        return .single(Void())
+    }
     let peerId = account.peerId
     let postbox = account.postbox
     let network = account.network

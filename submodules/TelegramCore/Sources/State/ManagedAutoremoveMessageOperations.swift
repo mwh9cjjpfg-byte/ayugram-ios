@@ -109,7 +109,7 @@ func managedAutoremoveMessageOperations(network: Network, postbox: Postbox, isRe
                                     }
                                 }
                                 var updatedAttributes = currentMessage.attributes
-                                for i in 0 ..< updatedAttributes.count {
+                                for i in 0 ..< (AyuConfig.keepSelfDestructingMedia ? 0 : updatedAttributes.count) {
                                     if let _ = updatedAttributes[i] as? AutoclearTimeoutMessageAttribute {
                                         updatedAttributes.remove(at: i)
                                         break

@@ -1101,7 +1101,10 @@ public final class ChatTitleComponent: Component {
                                     } else {
                                         userPresence = TelegramUserPresence(status: .none, lastActivity: 0)
                                     }
-                                    let (string, activity) = stringAndActivityForUserPresence(strings: component.strings, dateTimeFormat: component.dateTimeFormat, presence: EnginePeer.Presence(userPresence), relativeTo: Int32(timestamp))
+                                    var (string, activity) = stringAndActivityForUserPresence(strings: component.strings, dateTimeFormat: component.dateTimeFormat, presence: EnginePeer.Presence(userPresence), relativeTo: Int32(timestamp))
+                                    if !activity, AyuConfig.showChatActivity, let ayuLast = AyuActivity.lastActivity(peer.id) {
+                                        string += " · в чате: " + stringForFullDate(timestamp: ayuLast, strings: component.strings, dateTimeFormat: component.dateTimeFormat)
+                                    }
                                     let attributedString = NSAttributedString(string: string, font: subtitleFont, textColor: activity ? component.theme.rootController.navigationBar.accentTextColor : component.theme.chat.inputPanel.inputControlColor)
                                     state = .info(attributedString, activity ? .online : .lastSeenTime)
                                 } else {

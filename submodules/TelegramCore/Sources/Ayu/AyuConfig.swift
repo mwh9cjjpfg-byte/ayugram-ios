@@ -17,6 +17,8 @@ public enum AyuConfig {
         case localPremium = "ayu.localPremium"
         case keepSelfDestructingMedia = "ayu.keepSelfDestructingMedia"
         case allowScreenshots = "ayu.allowScreenshots"
+        case bypassCopyProtection = "ayu.bypassCopyProtection"
+        case showChatActivity = "ayu.showChatActivity"
     }
 
     private static func get(_ key: Key) -> Bool {
@@ -91,6 +93,42 @@ public enum AyuConfig {
     public static var allowScreenshots: Bool {
         get { return get(.allowScreenshots) }
         set { set(.allowScreenshots, newValue) }
+    }
+    
+    /// AyuForward: ignore "restrict saving content" so messages in protected chats can be copied, saved and selected.
+    public static var bypassCopyProtection: Bool {
+        get { return get(.bypassCopyProtection) }
+        set { set(.bypassCopyProtection, newValue) }
+    }
+    
+    /// Show "last active in chat with you" next to the status in the chat header.
+    public static var showChatActivity: Bool {
+        get { return get(.showChatActivity) }
+        set { set(.showChatActivity, newValue) }
+    }
+    
+    // MARK: Text settings
+    
+    public static var deletedMark: String {
+        get { return defaults.string(forKey: "ayu.deletedMark") ?? "удалено" }
+        set { defaults.set(newValue, forKey: "ayu.deletedMark") }
+    }
+    
+    public static var editedMark: String? {
+        get { return defaults.string(forKey: "ayu.editedMark") }
+        set { defaults.set(newValue, forKey: "ayu.editedMark") }
+    }
+    
+    /// Comma/newline separated list of numeric user ids whose messages are hidden locally.
+    public static var filterUserIds: String {
+        get { return defaults.string(forKey: "ayu.filterUserIds") ?? "" }
+        set { defaults.set(newValue, forKey: "ayu.filterUserIds") }
+    }
+    
+    /// Regular expression: messages matching it are hidden locally.
+    public static var filterRegex: String {
+        get { return defaults.string(forKey: "ayu.filterRegex") ?? "" }
+        set { defaults.set(newValue, forKey: "ayu.filterRegex") }
     }
     
     /// Convenience for the settings screen: turns all ghost switches on or off at once.

@@ -398,6 +398,11 @@ final class ReplayContext {
             }
             switch operation {
                 case let .AddMessages(messages, location):
+                    for message in messages {
+                        if message.flags.contains(.Incoming), let authorId = message.authorId {
+                            AyuActivity.record(authorId, timestamp: message.timestamp)
+                        }
+                    }
                     self.applyAddMessages(messages, location)
                 case let .AddScheduledMessages(messages):
                     self.applyAddScheduledMessages(messages)
@@ -424,6 +429,7 @@ final class ReplayContext {
                 case let .ReadInbox(messageId):
                     self.applyReadInbox(messageId)
                 case let .ReadOutbox(messageId, timestamp):
+                    AyuActivity.record(messageId.peerId)
                     self.applyReadOutbox(messageId, timestamp)
                 case let .UpdateReadThread(peerId, threadId, readMaxId, isIncoming, mainChannelMessage):
                     self.applyUpdateReadThread(peerId, threadId, readMaxId, isIncoming, mainChannelMessage)
@@ -468,6 +474,9 @@ final class ReplayContext {
                 case let .ReadSecretOutbox(peerId, maxTimestamp, actionTimestamp):
                     self.applyReadSecretOutbox(peerId, maxTimestamp, actionTimestamp)
                 case let .AddPeerInputActivity(chatPeerId, peerId, activity):
+                    if let peerId = peerId {
+                        AyuActivity.record(peerId)
+                    }
                     self.applyAddPeerInputActivity(chatPeerId, peerId, activity)
                 case let .AddPeerLiveTypingDraftUpdate(peerAndThreadId, id, timestamp, authorId, canStop, keepOnStop, content):
                     self.applyAddPeerLiveTypingDraftUpdate(peerAndThreadId, id, timestamp, authorId, canStop, keepOnStop, content)

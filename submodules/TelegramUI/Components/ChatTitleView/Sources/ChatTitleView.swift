@@ -657,7 +657,10 @@ public final class ChatTitleView: UIView, NavigationBarTitleView {
                                         } else {
                                             userPresence = TelegramUserPresence(status: .none, lastActivity: 0)
                                         }
-                                        let (string, activity) = stringAndActivityForUserPresence(strings: self.strings, dateTimeFormat: self.dateTimeFormat, presence: EnginePeer.Presence(userPresence), relativeTo: Int32(timestamp))
+                                        var (string, activity) = stringAndActivityForUserPresence(strings: self.strings, dateTimeFormat: self.dateTimeFormat, presence: EnginePeer.Presence(userPresence), relativeTo: Int32(timestamp))
+                                        if !activity, AyuConfig.showChatActivity, let ayuLast = AyuActivity.lastActivity(peer.id) {
+                                            string += " · в чате: " + stringForFullDate(timestamp: ayuLast, strings: self.strings, dateTimeFormat: self.dateTimeFormat)
+                                        }
                                         let attributedString = NSAttributedString(string: string, font: subtitleFont, textColor: activity ? titleTheme.rootController.navigationBar.accentTextColor : titleTheme.rootController.navigationBar.secondaryTextColor)
                                         state = .info(attributedString, activity ? .online : .lastSeenTime)
                                     } else {

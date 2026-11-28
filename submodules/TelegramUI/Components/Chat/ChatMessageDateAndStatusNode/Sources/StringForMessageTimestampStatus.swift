@@ -168,7 +168,10 @@ public func stringForMessageTimestampStatus(
         dateText = "         "
     }
     if message._asMessage().isAyuDeleted {
-        dateText = "deleted · " + dateText
+        let deletedMark = AyuConfig.deletedMark
+        if !deletedMark.isEmpty {
+            dateText = deletedMark + " · " + dateText
+        }
     }
     
     if let repeatPeriod = message.scheduleRepeatPeriod {
