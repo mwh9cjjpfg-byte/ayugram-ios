@@ -319,9 +319,6 @@ final class AccountStateEventHub {
                 for (chatPeerId, peerActivities) in events.updatedTypingActivities {
                     for (peerId, activity) in peerActivities {
                         if let activity = activity {
-                            if chatPeerId == peerId {
-                                AyuActivity.record(peerId)
-                            }
                             manager.addActivity(chatPeerId: chatPeerId, peerId: peerId, activity: activity)
                         } else {
                             manager.removeAllActivities(chatPeerId: chatPeerId, peerId: peerId)
